@@ -36,21 +36,26 @@ def bfs(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    # TODO: Write your code here
     fringe = []
     visited = set()
     start = maze.getStart()
-    fringe.append(start)
+    print(f"Start: {start}")  # Debug print
+    fringe.append((start, [start]))  # Store the path along with the current position
     visited.add(start)
+    
     while fringe:
-        current = fringe.pop(0)
+        current, path = fringe.pop(0)
+        print(f"Current: {current}, Path: {path}")  # Debug print
         if maze.isObjective(current[0], current[1]):
-            return current
+            print("Path found:", path)  # Debug print
+            return path
         neighbors = maze.getNeighbors(current[0], current[1])
+        print(f"Neighbors: {neighbors}")  # Debug print
         for neighbor in neighbors:
             if neighbor not in visited:
-                fringe.append(neighbor)
+                fringe.append((neighbor, path + [neighbor]))
                 visited.add(neighbor)
+                print(f"Added to fringe: {neighbor}, New Path: {path + [neighbor]}")  # Debug print
 
     return []
 
@@ -64,7 +69,52 @@ def astar(maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
     # TODO: Write your code here
-    return []
+    # Use manhattan distance as heuristic
+    # f(n) = g(n) + h(n)
+
+    import heapq
+
+    def heuristic(pos, goal):
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
+    
+    # Get objective for heuristic calculation
+    objectives = maze.getObjectives()
+    if not objectives:
+        return []
+    goal = objectives[0]  # Using first objective for single-goal A*
+    
+    fringe = []  # Priority queue [(f_value, counter, node, path, cost)]
+    visited = {}  # Dictionary to store cost to reach each node
+    start = maze.getStart()
+    counter = 0  # Tiebreaker for equal f-values
+    
+    # Initial f-value = 0 (cost so far) + heuristic(start, goal)
+    f_value = 0 + heuristic(start, goal)
+    heapq.heappush(fringe, (f_value, counter, start, [start], 0))
+    visited[start] = 0
+    
+    while fringe:
+        # Get node with lowest f-value
+        f, _, current, path, cost = heapq.heappop(fringe)
+        
+        if current == goal:
+            return path
+            
+        # If we've found a worse path to current, skip it
+        if current in visited and visited[current] < cost:
+            continue
+            
+        for neighbor in maze.getNeighbors(current[0], current[1]):
+            new_cost = cost + 1  # Assuming uniform step cost
+            
+            # If we found a better path to neighbor
+            if neighbor not in visited or new_cost < visited[neighbor]:
+                visited[neighbor] = new_cost
+                counter += 1
+                f_value = new_cost + heuristic(neighbor, goal)
+                heapq.heappush(fringe, (f_value, counter, neighbor, path + [neighbor], new_cost))
+    
+    return []  # No path found
 
 def astar_corner(maze):
     """
