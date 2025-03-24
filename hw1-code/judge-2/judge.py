@@ -54,52 +54,7 @@ from maze import Maze
 from search import search
 import time
 
-import argparse
-import subprocess 
-
-def auto_mode(): 
-    print('Auto mode on astar_multi (Ctrl-C to abort)\n=====================')
-    count = 1
-    while True:
-        # generate a new maze using gen_maze.py, save stdout to temp.txt
-        subprocess.run(["python3", "gen_maze.py"], stdout=open("./temp.txt", "w"))    
-        maze = Maze("./temp.txt")
-
-        # Run by bfs
-        print(f"Test {count}: ")
-        
-        # Print maze content
-        with open("./temp.txt", "r") as f:
-            print(f.read())
-
-
-        print("bfs...")
-        bfs_len = len(search(maze, "bfs"))
-        print("astar_multi...")
-        t1 = time.time()
-        astar_multi_len = len(search(maze, "astar_multi"))
-        elapsed = time.time() - t1
-
-        # print green pass if using bfs and the assigned method gives same path length
-        print(f"Test {count}: ", end="")
-        if bfs_len == astar_multi_len:
-            print(f"\033[92mPASS\033[0m (elapsed: {elapsed:.2f}s, expanded: {maze.getStatesExplored()})")
-        else:
-            print(f"\033[91mFAIL\033[0m (bfs: {bfs_len}, astar_multi: {astar_multi_len})")
-            break 
-        # print red fail if using bfs and the assigned method gives different path length and abort
-        print()
-        count += 1
-
 if __name__ == "__main__":
-    # -a for auto mode
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-a", "--auto", action="store_true")
-    args = parser.parse_args()
-
-    if args.auto:
-        auto_mode()
-
     # for each of the dir under maps/ run the method assigned 
     
     for dir in listdir("./testcases/"):
@@ -118,14 +73,18 @@ if __name__ == "__main__":
             print(f"{file}: ", end="")
             t1 = time.time()
             answer_val = answer[file] if file in answer else -1
-            method_len = len(search(maze, method))
+            ans_path = search(maze, method)
+            method_len = len(ans_path)
             elapsed = time.time() - t1
 
             if answer_val == -1 and 'custom' not in file:
                 if elapsed > 1:
                     print(f"\033[93mSLOW\033[0m (elapsed: {elapsed:.2f}s)")
                 else:
-                    print(f"\033[93mFAST\033[0m (elapsed: {elapsed:.2f}s)")
+                    if(maze.isValidPath(ans_path) == "Valid"):
+                        print(f"\033[93mFAST and CORRECT\033[0m (elapsed: {elapsed:.2f}s)")
+                    else:
+                        print(f"\033[93mFAIL\033[0m (elapsed: {elapsed:.2f}s)")
             elif answer_val == method_len:
                 print(f"\033[92mPASS\033[0m (elapsed: {elapsed:.2f}s, expanded: {maze.getStatesExplored()})")
             else:

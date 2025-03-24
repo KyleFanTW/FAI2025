@@ -32,48 +32,26 @@ def search(maze, searchMethod):
         "fast": fast,
     }.get(searchMethod)(maze)
 
-def bfs(maze):
-    """
-    Runs BFS for part 1 of the assignment.
 
-    @param maze: The maze to execute the search on.
-
-    @return path: a list of tuples containing the coordinates of each state in the computed path
-    """
-    # call bfsUtil with start and goal
-    return bfsUtil(maze, maze.getStart(), maze.getObjectives())
-
-def bfsUtil(maze, start, target):
-    """Helper function for fast: finds path from start to target using BFS"""
-    
+def bfsUtil(maze, start, target):    
     fringe = []
     visited = set()
-    
-    #print(f"Start: {start}")  
+
     fringe.append((start, [start]))  
     visited.add(start)
     
     while fringe:
         current, path = fringe.pop(0)
-        #print(f"Current: {current}, Path: {path}")  
         if current == target:
-            #print("Path found:", path)  
+            #if maze.isValidPath(path) == "Valid":
             return path
         neighbors = maze.getNeighbors(current[0], current[1])
-        #print(f"Neighbors: {neighbors}")  
         for neighbor in neighbors:
             if neighbor not in visited:
                 fringe.append((neighbor, path + [neighbor]))
                 visited.add(neighbor)
-                #print(f"Added to fringe: {neighbor}, New Path: {path + [neighbor]}")  
 
     return []
-
-
-
-def ManhattanDistance(p1, p2):
-    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
-
 
 def astarUtil(maze, start, target, heuristic):
     fringe = [] # Priority queue [(f_value, counter, node, path, cost)]
@@ -83,48 +61,31 @@ def astarUtil(maze, start, target, heuristic):
     heapq.heappush(fringe, (heuristic(start, target), tieBreaker, start, [start], 0))
     
     while fringe:
-        # Get node with lowest f-value
         _, _, current, path, cost = heapq.heappop(fringe)
-        
+        if current in visited and visited[current] < cost:
+            continue
         if current == target:
             return path
             
-        # If we've found a worse path to current, skip it
-        if current in visited and visited[current] < cost:
-            continue
-            
         for neighbor in maze.getNeighbors(current[0], current[1]):
-            new_cost = cost + 1  # Assuming uniform step cost
-            
-            # If we found a better path to neighbor
-            if neighbor not in visited or new_cost < visited[neighbor]:
-                visited[neighbor] = new_cost
+            newCost = cost + 1  
+            if neighbor not in visited or newCost < visited[neighbor]:
+                visited[neighbor] = newCost
                 tieBreaker += 1
-                f = new_cost + heuristic(neighbor, target)
-                heapq.heappush(fringe, (f, tieBreaker, neighbor, path + [neighbor], new_cost))
+                f = newCost + heuristic(neighbor, target)
+                heapq.heappush(fringe, (f, tieBreaker, neighbor, path + [neighbor], newCost))
     
     return []  
 
-
-def astar(maze):
-    """
-    Runs A star for part 1 of the assignment.
-
-    @param maze: The maze to execute the search on.
-
-    @return path: a list of tuples containing the coordinates of each state in the computed path
-    """
-
-    return astarUtil(maze, maze.getStart(), maze.getObjectives()[0], ManhattanDistance)
-    
-
 def getDist(p1, p2, distFrom):
     if p1 in distFrom:
-        return distFrom[p1].get(p2, float('inf'))
+        return distFrom[p1].get(p2)
     elif p2 in distFrom:
-        return distFrom[p2].get(p1, float('inf'))
+        return distFrom[p2].get(p1)
     else:
         return float('inf')
+    
+
 
 def mstCost(unvisited, mstUnderSet, distFrom):
     if len(unvisited) <= 1:
@@ -132,8 +93,6 @@ def mstCost(unvisited, mstUnderSet, distFrom):
     if unvisited in mstUnderSet:
         return mstUnderSet[unvisited]
 
-    # build list of edges (dotA, dotB, distance)
-    # unvisited is a frozenset of dot positions
     dotsList = list(unvisited)
     edges = []
     for i in range(len(dotsList)):
@@ -141,9 +100,9 @@ def mstCost(unvisited, mstUnderSet, distFrom):
             dA, dB = dotsList[i], dotsList[j]
             distAB = getDist(dA, dB, distFrom)
             edges.append((distAB, dA, dB))
+
     edges.sort(key=lambda x: x[0])
 
-    # Kruskal's MST
     parent = {d: d for d in dotsList}
     rank = {d: 0 for d in dotsList}
     
@@ -172,13 +131,24 @@ def mstCost(unvisited, mstUnderSet, distFrom):
     return cost
 
 
+def ManhattanDistance(p1, p2):
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+def astar(maze):
+    return astarUtil(maze, maze.getStart(), maze.getObjectives()[0], ManhattanDistance)
+    
+def bfs(maze):
+    """
+    Runs BFS for part 1 of the assignment.
+
+    @param maze: The maze to execute the search on.
+
+    @return path: a list of tuples containing the coordinates of each state in the computed path
+    """
+    return bfsUtil(maze, maze.getStart(), maze.getObjectives())
 
 def astar_corner(maze):
-    """
-    Solve with specialized astar_multi for 4 corners.
-    """
     return astar_multi(maze)
-
 
 def astar_multi(maze):
     def bfsDistancesFrom(maze, startPos):
@@ -190,78 +160,61 @@ def astar_multi(maze):
         
         while queue:
             cur = queue.popleft()
-            for nbr in maze.getNeighbors(cur[0], cur[1]):
-                if nbr not in dist:
-                    dist[nbr] = dist[cur] + 1
-                    queue.append(nbr)
+            for neighbor in maze.getNeighbors(cur[0], cur[1]):
+                if neighbor not in dist:
+                    dist[neighbor] = dist[cur] + 1
+                    queue.append(neighbor)
         return dist
   
-    # 1) Get all dot positions
-    allDots = maze.getObjectives()  # a list of (row,col) for each dot
+    allDots = maze.getObjectives()  
     allDotsSet = frozenset(allDots)
     start = maze.getStart()
 
-    # 2) Precompute BFS distances from each dot to all cells (or at least dot-to-dot)
-    #    Also BFS from the start to all cells, so we can get dist(start, dot).
-    #    For example:
-    distFrom = {}  # distFrom[pos][cell] = BFS distance from pos to cell
-    # Because pos can be start or any dot
-    pointsToCompute = allDots + [start]
-    for p in pointsToCompute:
+    distFrom = {}  # distFrom[src][dst]
+    
+    for p in allDots + [start]:
         distFrom[p] = bfsDistancesFrom(maze, p)
 
     mstUnderSet = {}
 
-    # 5) Define our heuristic:
-    def multiHeuristic(currentPos, visited):
-        # unvisited dots
+    def multiHeuristic(currentPos, visited): 
         unvisited = allDotsSet - visited
         if not unvisited:
             return 0
-        # distance to the *closest* unvisited dot
-        dist_to_closest = min(getDist(currentPos, dot, distFrom) for dot in unvisited)
-        # plus the MST over unvisited
-        return dist_to_closest + mstCost(frozenset(unvisited), mstUnderSet, distFrom)
+        closeDot = min(getDist(currentPos, dot, distFrom) for dot in unvisited)
 
-    # 6) A* Search
-    # Priority queue holds (f, g, currentPos, visitedSet, path)
-    pq = []
+        return closeDot + mstCost(frozenset(unvisited), mstUnderSet, distFrom)
+
+    pq = [] #(f, g, currentPos, visitedSet, path)                
     visitedCosts = {}
-    startVisited = frozenset([d for d in allDots if d == start])  # if start is itself a dot
+    startVisited = frozenset()
+    if start in allDots:
+        startVisited = frozenset({start})
     initState = (start, startVisited)
     initH = multiHeuristic(start, startVisited)
     heapq.heappush(pq, (initH, 0, start, startVisited, [start]))
     visitedCosts[initState] = 0
 
     while pq:
-        f, g, curPos, visitedDots, path = heapq.heappop(pq)
-        
-        # If outdated cost, skip
+        _, g, curPos, visitedDots, path = heapq.heappop(pq)
+        if len(visitedDots) == len(allDots):
+            return path
         if visitedCosts.get((curPos, visitedDots), float('inf')) < g:
             continue
         
-        # Goal check
-        if len(visitedDots) == len(allDots):
-            # Found path visiting all dots
-            return path
-        
-        # Expand neighbors
-        for nbr in maze.getNeighbors(curPos[0], curPos[1]):
+        for neighbor in maze.getNeighbors(curPos[0], curPos[1]):
             newVisited = visitedDots
-            if nbr in allDots:
-                # Mark it visited
-                newVisited = visitedDots | {nbr}
+            if neighbor in allDots:
+                newVisited = visitedDots | {neighbor}
             newG = g + 1
-            oldCost = visitedCosts.get((nbr, newVisited), float('inf'))
+            oldCost = visitedCosts.get((neighbor, newVisited), float('inf'))
             if newG < oldCost:
-                visitedCosts[(nbr, newVisited)] = newG
-                newH = multiHeuristic(nbr, newVisited)
+                visitedCosts[(neighbor, newVisited)] = newG
+                newH = multiHeuristic(neighbor, newVisited)
                 newF = newG + newH
-                heapq.heappush(pq, (newF, newG, nbr, newVisited, path + [nbr]))
+                heapq.heappush(pq, (newF, newG, neighbor, newVisited, path + [neighbor]))
 
     return []  
-
-
 
 def fast(maze):
     """
@@ -278,17 +231,13 @@ def fast(maze):
     unvisited = set(objectives)
     
     while unvisited:
-
         nearest = min(unvisited, 
-                        key=lambda obj: abs(obj[0] - current[0]) + abs(obj[1] - current[1]))
+                        key=lambda obj: ManhattanDistance(current, obj))
         unvisited.remove(nearest)
         
-        # Find path to this nearest objective using BFS
         subpath = bfsUtil(maze, current, nearest)
-        if not subpath:  # If no path found (unlikely)
+        if not subpath:  
             continue
-            
-        # Add the path to the nearest objective (excluding the starting point)
         path.extend(subpath[1:])
         current = nearest
         
